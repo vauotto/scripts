@@ -1,43 +1,48 @@
 #!/bin/bash
 
-DEFAULT_BRANCH="dev"
-NUM_OS="3214358"
-COMMIT_HASH=("40bdee1afcde3f8cf4acdce7a7648c95fb3131ad") 
-VERSOES=("5.01.1835")
-PATH_TO_REPO="/home/vauotto/emr-tasy-framework"
-PR_TITLE="ci: fixed release builds to V&V and other enviroments"
+DEFAULT_BRANCH="pre_main"
+NUM_OS="3216294"
+COMMIT_HASH=("2112968a64cc745c5562b6344daec992c2480ff0") 
+VERSOES=("5.00.1832")
+PATH_TO_REPO="/home/vauotto/HTML5/gitprojects/emr-tasy-backend"
+PR_TITLE="fix(CorSisFO): correct usage config creation [SO-3216294]"
 PR_BODY="
-### Tasy HTML5 Framework
+### Tasy HTML5 
 ##### Pull request information
 
+https://dev.azure.com/emr-cm/EMR/_workitems/edit/566067
+
 ###### Quality Checks
-- **What feature or fix was requested?**<br/>
-Build releases were not working
+- What is the feature or problem that this PR address?
+Usage configuration would show an error when creating rules after DX conversion. 
 
-- **Which functions have you tested your implementation?**<br/>
+https://github.com/user-attachments/assets/38dfc175-1c74-4e6a-b63d-d2950ba15f8b
+
+- What has been done in the source code to address this?
+Check wether NR_SEQ_OBJ_SCHEMATIC has value, otherwise use NR_SEQ_OBJ_FILE.
+
+- How did you test it?
+
+https://github.com/user-attachments/assets/8f602e83-34db-4097-81fd-5cc6938240fb
+
+- Any other relevant information to reviewer?
+System administration is converted to DX in version >= 1835
+
+- Changed PL/SQL Objects:
 N/A
 
-- **How did you test it? Provide evidence of testing in different scenarios.**<br/>
-Running pipelines in a test environment. 
-
-- **Any other relevant information to reviewer?**<br/>
- Jenkins link: http://srv-jks-tech-01.whebdc.com.br:8080/
-
-- **Any other pull requests from another project? for example, a PR from the framework backend.**<br/>
+- Backend/Frontend/tasy-plsql-objects PR Link:
 N/A
 
-#### Reminder:
 
-* Update the [spreadsheet](https://share.philips.com/:x:/r/sites/Technology/Shared%20Documents/Componentes-VS-Cenarios-de-testes.xlsx?d=w7cfb59aedef64db1a7c27c6625edf64b&csf=1&web=1&e=ph5dJp) whenever a new and relevant scenario is identified!
-* Don't forget to open a new card in the [HTML5 Kanban](https://github.com/orgs/philips-emr/projects/29) for the team to review.
 
-#### Reviewer/Analyst checklist
+#### Tasy HTML5 - Definition of Done (DoD) - Reviewer checklist
 ##### As a reviewer I have checked _all_ the items mentioned below:
 
-- [ ] All necessary checks are passing
-- [ ] Are the scenario described in the task and the scenarios described in the test spreadsheet highlighted in the pull request via video or image?
-- [ ] Was the scenario for this task included in the spreadsheet? If not, why?
-- [ ] Have all scenarios described in the test spreadsheet been tested? If not, describe why
+- [ ] All the gated checks are passing 
+- [ ] The code has been reviewed observing the business requirements and best practices
+- [ ] The code has propper code abstraction
+- [ ] No micro code duplication has been found in this pull request
 - [ ] Any By-pass for this PR? If Yes, please provide the details here - Failure and Rationale
 "
 
@@ -47,53 +52,71 @@ echo "Versionamento de commits no GitHub - by Otto 😎"
 
 
 versionar() {
-    cd $PATH_TO_REPO
+    echo "---Entrando no diretório do repositório: $PATH_TO_REPO"
+    cd $PATH_TO_REPO > /dev/null
+    
+    echo "---Salvando alterações da branch atual e atualizando repositório"
+    git stash > /dev/null
+    git checkout $DEFAULT_BRANCH > /dev/null 2>&1
+    git pull > /dev/null 2>&1
 
-    git stash
-    git checkout $DEFAULT_BRANCH 
-    git pull 
-
-    count=0
+    pr_output=""
 
     for i in "${VERSOES[@]}"; do
-        echo -e "\n\n\nVersionando na $i"
-       
-        git stash
-        git checkout $i
-        git pull 
+        echo -e "\n\n==========Versionando na $i=========="
+
+        echo "---Salvando Alterações da branch atual (stash)"
+        git stash > /dev/null
+
+        echo "---Checkout para branch destino e update" 
+        git checkout $i > /dev/null 2>&1
+        git pull > /dev/null 2>&1
 
         BRANCH="$i-$NUM_OS"
         
         # create develop branch
-        
-
-        if ! git checkout -b $BRANCH; then 
-            echo "branch já existia -> deletando e tentando novamente"
-            git branch -D "$BRANCH"
-            git checkout -b $BRANCH
+        echo "---Criando branch temporária" 
+        if ! git checkout -b $BRANCH > /dev/null 2>&1; then 
+            echo "---Branch já existia -> deletando e tentando novamente"
+            git branch -D "$BRANCH" > /dev/null
+            git checkout -b $BRANCH > /dev/null 2>&1
         fi
 
         # BRANCH="$i"
 
+        echo "---Cherry Picks---"
+        count=1
         for hash in "${COMMIT_HASH[@]}"; do 
-            git cherry-pick $hash --strategy-option theirs --no-commit && git commit --reuse-message=$hash || {
-                git checkout --theirs .
-                git add .
-                git commit --reuse-message=$hash
+            echo "----> Cherry Pick $count: $hash"
+            count=$((count+1))
+            git cherry-pick $hash --strategy-option theirs --no-commit >/dev/null && git commit --reuse-message=$hash >/dev/null || {
+                echo "---Erro ao aplicar cherry-pick. Resolvendo conflitos manualmente"
+                git checkout --theirs . >/dev/null
+                git add . > /dev/null
+                git commit --reuse-message=$hash >/dev/null
             }
 
             if [[ -n $MENSAGEM_COMMIT ]]; then 
-                git commit --amend -m "$MENSAGEM_COMMIT"
-                count=$((count+1))
+                echo "---Utilizando mensagem de commit informada"
+                git commit --amend -m "$MENSAGEM_COMMIT" > /dev/null
             fi 
         done 
         
-        git push --set-upstream origin $i
-        gh pr create --title "$PR_TITLE" --body "$PR_BODY" -B "$i"
+        echo "---Push da branch $BRANCH para origin"
+        git push --set-upstream origin $BRANCH >/dev/null 2>&1
 
-        git checkout $DEFAULT_BRANCH
-        git branch -D $BRANCH
+        echo "---Criando pull request"
+        pr_url=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" -B "$i" | grep -o 'https://github.com[^ ]*')
+        pr_output="$pr_output\n$i: $pr_url"
+
+        echo "---Voltando para a branch original e apagando branch temporária"
+        git checkout $DEFAULT_BRANCH > /dev/null 2>&1
+        git branch -D $BRANCH > /dev/null 
     done 
+
+    echo -e "\n==========PULL REQUESTS=========="
+    echo -e "$pr_output"
+    
     # git stash apply
 }
 
