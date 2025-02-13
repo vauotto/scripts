@@ -1,55 +1,54 @@
 #!/bin/bash
 
 DEFAULT_BRANCH="pre_main"
-NUM_OS="3216294"
-COMMIT_HASH=("2112968a64cc745c5562b6344daec992c2480ff0") 
 VERSOES=("5.00.1832")
 PATH_TO_REPO="/home/vauotto/HTML5/gitprojects/emr-tasy-backend"
-PR_TITLE="fix(CorSisFO): correct usage config creation [SO-3216294]"
-PR_BODY="
-### Tasy HTML5 
-##### Pull request information
-
-https://dev.azure.com/emr-cm/EMR/_workitems/edit/566067
-
-###### Quality Checks
-- What is the feature or problem that this PR address?
-Usage configuration would show an error when creating rules after DX conversion. 
-
-https://github.com/user-attachments/assets/38dfc175-1c74-4e6a-b63d-d2950ba15f8b
-
-- What has been done in the source code to address this?
-Check wether NR_SEQ_OBJ_SCHEMATIC has value, otherwise use NR_SEQ_OBJ_FILE.
-
-- How did you test it?
-
-https://github.com/user-attachments/assets/8f602e83-34db-4097-81fd-5cc6938240fb
-
-- Any other relevant information to reviewer?
-System administration is converted to DX in version >= 1835
-
-- Changed PL/SQL Objects:
-N/A
-
-- Backend/Frontend/tasy-plsql-objects PR Link:
-N/A
-
-
-
-#### Tasy HTML5 - Definition of Done (DoD) - Reviewer checklist
-##### As a reviewer I have checked _all_ the items mentioned below:
-
-- [ ] All the gated checks are passing 
-- [ ] The code has been reviewed observing the business requirements and best practices
-- [ ] The code has propper code abstraction
-- [ ] No micro code duplication has been found in this pull request
-- [ ] Any By-pass for this PR? If Yes, please provide the details here - Failure and Rationale
-"
-
 MENSAGEM_COMMIT=""
 
-echo "Versionamento de commits no GitHub - by Otto 😎"
+### Obter parâmetros ### 
+PR_URL="https://github.com/philips-internal/emr-tasy-backend/pull/91943"
 
+NUM_OS=""
+COMMIT_HASH=("") 
+PR_TITLE=""
+PR_BODY=""
+
+if [ -n $PR_URL ]; then
+
+    # Extrai dono, repositório e número do PR a partir da URL
+    OWNER_REPO=$(echo "$PR_URL" | awk -F '/' '{print $(NF-3) "/" $(NF-2)}')
+    PR_NUMBER=$(echo "$PR_URL" | awk -F '/' '{print $NF}')
+
+    # URL da API do PR
+    API_URL="https://api.github.com/repos/$OWNER_REPO/pulls/$PR_NUMBER"
+
+    # Obtém informações do PR
+    if [ -z "$GH_TOKEN" ]; then
+        RESPONSE=$(curl -s "$API_URL")
+    else
+        RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" "$API_URL")
+    fi
+
+    # Extraindo informações do PR
+    PR_TITLE=$(echo "$RESPONSE" | jq -r '.title')
+    PR_BODY=$(echo "$RESPONSE" | jq -r '.body')
+
+    # Extraindo o número da OS do título ([SO-NUM_OS])
+    NUM_OS=$(echo "$PR_TITLE" | sed -n 's/.*[SO-]\([0-9]*\).*/\1/p')
+
+    # Obtém os hashes de todos os commits do PR
+    COMMITS_URL="https://api.github.com/repos/$OWNER_REPO/pulls/$PR_NUMBER/commits"
+
+    if [ -z "$GH_TOKEN" ]; then
+        COMMITS_RESPONSE=$(curl -s "$COMMITS_URL")
+    else
+        COMMITS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" "$COMMITS_URL")
+    fi
+
+    mapfile -t COMMIT_HASH < <(echo "$COMMITS_RESPONSE" | jq -r '.[].sha')
+fi
+
+echo "==========Versionamento de commits no GitHub - by Otto 😎=========="
 
 versionar() {
     echo "---Entrando no diretório do repositório: $PATH_TO_REPO"
