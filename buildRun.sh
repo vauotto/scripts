@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "/home/vauotto/scripts"
+
 this=$(pwd)
 
 framework_backend="/home/vauotto/HTML5/gitprojects/emr-tasy-framework-backend"
@@ -9,25 +11,24 @@ framework="/home/vauotto/HTML5/gitprojects/emr-tasy-framework"
 
 # framework_backend
 COMPILAR_FRAMEWORK_BACK=false
+BRANCH_FRAMEWORK_BACKEND="5.02.1838"
 
 # backend
 COMPILAR_BACK=false
-SUBIR_BACK=false
-DEBUG_BACKEND=false
+SUBIR_BACK=true
+BRANCH_BACKEND="5.02.1838"
+COPY_CONTEXT_BACK=true
 
 # front-end
-COMPILAR_FRONT=false
+COMPILAR_FRONT=true
 SUBIR_FRONT=true
 AMBIENTE="local"
 modules=('corsis')
+BRANCH_FRONTEND="5.02.1838"
 features=()
 
 if [ "$SUBIR_BACK" = true ]; then
     AMBIENTE="local"
-fi
-
-if [ "$DEBUG_BACKEND" = true ]; then
-    SUBIR_BACK=true
 fi
 
 cleanup() {
@@ -42,12 +43,23 @@ trap cleanup SIGINT SIGTERM EXIT
 if [ "$COMPILAR_FRAMEWORK_BACK" = true ]; then
     echo -e "\n==========Buildando e publicando Framework Backend=========="
     cd $framework_backend
+    git stash > /dev/null
+    git checkout $BRANCH_FRAMEWORK_BACKEND > /dev/null
+    git pull > /dev/null
     ./gradlew clean assemble publishToMavenLocal
 fi
 
 if [ "$COMPILAR_BACK" = true ]; then
     echo -e "\n==========Buildando Backend=========="
     cd $backend
+    git stash > /dev/null
+    git checkout $BRANCH_BACKEND > /dev/null
+    git pull > /dev/null
+    if [ "$COPY_CONTEXT_BACK" = true ]; then
+        yes | cp -rf $this/context_backend/context.xml $backend/TasyAppServer
+        yes | cp -rf $this/context_backend/configuration.yml $backend/TasyAppServer
+        yes | cp -rf $this/context_backend/gradle.properties $backend
+    fi
     ./gradlew clean assemble
 fi
 
@@ -64,6 +76,9 @@ fi
 if [ "$COMPILAR_FRONT" = true ]; then 
     echo -e "\n==========Buildando Frontend=========="
     cd $front
+    git stash > /dev/null
+    git checkout $BRANCH_FRONTEND > /dev/null
+    git pull > /dev/null
     nvm install && nvm use
     npm ci
 fi

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 DEFAULT_BRANCH="pre_main"
-VERSOES=("5.00.1832")
+VERSOES=("pre_main")
 PATH_TO_REPO="/home/vauotto/HTML5/gitprojects/emr-tasy-backend"
 MENSAGEM_COMMIT=""
 
 ### Obter parâmetros ### 
-PR_URL="https://github.com/philips-internal/emr-tasy-backend/pull/91943"
+PR_URL="https://github.com/philips-internal/emr-tasy-backend/pull/91450"
 
 NUM_OS=""
 COMMIT_HASH=("") 
