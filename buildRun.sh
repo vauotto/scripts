@@ -14,18 +14,19 @@ COMPILAR_FRAMEWORK_BACK=false
 BRANCH_FRAMEWORK_BACKEND="5.02.1838"
 
 # backend
-COMPILAR_BACK=false
+COMPILAR_BACK=true
 SUBIR_BACK=true
 BRANCH_BACKEND="5.02.1838"
 COPY_CONTEXT_BACK=true
 
 # front-end
-COMPILAR_FRONT=true
-SUBIR_FRONT=true
+COMPILAR_FRONT=false
+CLEAN_BEFORE_INSTALL=false  
+SUBIR_FRONT=false
 AMBIENTE="local"
 modules=('corsis')
-BRANCH_FRONTEND="5.02.1838"
 features=()
+BRANCH_FRONTEND="5.02.1838"
 
 if [ "$SUBIR_BACK" = true ]; then
     AMBIENTE="local"
@@ -56,9 +57,7 @@ if [ "$COMPILAR_BACK" = true ]; then
     git checkout $BRANCH_BACKEND > /dev/null
     git pull > /dev/null
     if [ "$COPY_CONTEXT_BACK" = true ]; then
-        yes | cp -rf $this/context_backend/context.xml $backend/TasyAppServer
-        yes | cp -rf $this/context_backend/configuration.yml $backend/TasyAppServer
-        yes | cp -rf $this/context_backend/gradle.properties $backend
+        $this/copyContext.sh
     fi
     ./gradlew clean assemble
 fi
@@ -68,25 +67,41 @@ if [ "$SUBIR_BACK" = true ]; then
     echo -e "\n==========Subindo Backend=========="
     killall java 
 
-
-    ./gradlew tomcatRun -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5010 2>&1 | tee $this/backend.log &
+    [[ -f "$this/backend.log" ]] && rm -rf $this/backend.log
+    touch $this/backend.log
+    # -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5010
+    ./gradlew tomcatRun  2>&1 | tee $this/backend.log &
 
 fi
 
 if [ "$COMPILAR_FRONT" = true ]; then 
+    source ~/.nvm/nvm.sh > /dev/null && source ~/.bashrc > /dev/null
     echo -e "\n==========Buildando Frontend=========="
     cd $front
     git stash > /dev/null
     git checkout $BRANCH_FRONTEND > /dev/null
     git pull > /dev/null
-    nvm install && nvm use
-    npm ci
+    nvm install > /dev/null && nvm use > /dev/null
+
+    if [ "$CLEAN_BEFORE_INSTALL" = true ]; then
+        yes | npm ci > /dev/null
+    else
+        yes | npm i > /dev/null
+    fi
 fi
 
 if [ "$SUBIR_FRONT" = true ]; then
     echo -e "\n==========Subindo Frontend=========="
+    source ~/.nvm/nvm.sh > /dev/null && source ~/.bashrc > /dev/null
     cd $front
-    command="npm run dev -- --environment $AMBIENTE"
+    
+    command=""
+    if [ "$BRANCH_FRONTEND" = "5.02.1838" ]; then 
+        command="gulp newserve:backendAddress --address $AMBIENT"
+    else 
+        command="npm run dev -- --environment $AMBIENTE"
+    fi 
+
     if [ -n "$modules" ]; then 
         command="$command --modules $modules"
     fi 
@@ -95,6 +110,9 @@ if [ "$SUBIR_FRONT" = true ]; then
         command="$command --features $features"
     fi
 
+    [[ -f "$this/frontend.log" ]] && rm -rf $this/frontend.log
+    touch $this/frontend.log
+    
     $command 2>&1 | tee $this/frontend.log &
 fi 
 
